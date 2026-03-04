@@ -1,0 +1,176 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Skylark Drones BI Agent</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; background: #0f0f1a; height: 100vh; display: flex; flex-direction: column; color: #fff; }
+        
+        .header { background: linear-gradient(135deg, #1a1a2e, #16213e); padding: 16px 24px; display: flex; align-items: center; gap: 12px; border-bottom: 1px solid #0073ea33; }
+        .header-icon { width: 40px; height: 40px; background: #0073ea; border-radius: 10px; display: flex; align-items: center; justify-content: center; font-size: 20px; }
+        .header-text h1 { font-size: 18px; font-weight: 600; }
+        .header-text p { font-size: 12px; color: #0073ea; }
+        .live-badge { margin-left: auto; background: #00e67620; border: 1px solid #00e676; color: #00e676; padding: 4px 10px; border-radius: 20px; font-size: 11px; display: flex; align-items: center; gap: 5px; }
+        .live-dot { width: 6px; height: 6px; background: #00e676; border-radius: 50%; animation: pulse 1.5s infinite; }
+        @keyframes pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.3; } }
+
+        .chat-container { flex: 1; overflow-y: auto; padding: 24px; max-width: 800px; width: 100%; margin: 0 auto; }
+        .chat-container::-webkit-scrollbar { width: 4px; }
+        .chat-container::-webkit-scrollbar-track { background: transparent; }
+        .chat-container::-webkit-scrollbar-thumb { background: #0073ea44; border-radius: 2px; }
+
+        .message { margin-bottom: 20px; display: flex; flex-direction: column; animation: fadeIn 0.3s ease; }
+        @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+        .message.user { align-items: flex-end; }
+        .message.bot { align-items: flex-start; }
+        .bubble { max-width: 78%; padding: 14px 18px; border-radius: 16px; line-height: 1.6; font-size: 14px; }
+        .user .bubble { background: linear-gradient(135deg, #0073ea, #0056b3); color: white; border-bottom-right-radius: 4px; }
+        .bot .bubble { background: #1a1a2e; border: 1px solid #ffffff15; color: #e0e0e0; border-bottom-left-radius: 4px; }
+
+        .tool-trace { background: #0d1117; border: 1px solid #0073ea33; border-radius: 10px; padding: 10px 14px; font-size: 11px; color: #0073ea; margin-top: 8px; max-width: 78%; font-family: monospace; }
+
+        .suggestions { display: flex; flex-wrap: wrap; gap: 8px; padding: 12px 24px; max-width: 800px; width: 100%; margin: 0 auto; }
+        .suggestion { background: #1a1a2e; border: 1px solid #0073ea44; border-radius: 20px; padding: 8px 16px; font-size: 12px; cursor: pointer; color: #0073ea; transition: all 0.2s; }
+        .suggestion:hover { background: #0073ea; color: white; border-color: #0073ea; }
+
+        .input-area { background: #1a1a2e; border-top: 1px solid #ffffff10; padding: 16px 24px; display: flex; gap: 12px; max-width: 800px; width: 100%; margin: 0 auto; }
+        #questionInput { flex: 1; padding: 12px 18px; background: #0f0f1a; border: 1px solid #ffffff20; border-radius: 25px; font-size: 14px; outline: none; color: white; transition: border-color 0.2s; }
+        #questionInput:focus { border-color: #0073ea; }
+        #questionInput::placeholder { color: #666; }
+        #sendBtn { background: #0073ea; color: white; border: none; padding: 12px 24px; border-radius: 25px; cursor: pointer; font-size: 14px; font-weight: 500; transition: all 0.2s; min-width: 80px; }
+        #sendBtn:hover { background: #0056b3; transform: translateY(-1px); }
+        #sendBtn:disabled { background: #333; cursor: not-allowed; transform: none; }
+
+        .loading-dots { display: flex; gap: 5px; padding: 4px 0; }
+        .dot { width: 8px; height: 8px; background: #0073ea; border-radius: 50%; animation: bounce 1.2s infinite; }
+        .dot:nth-child(2) { animation-delay: 0.2s; }
+        .dot:nth-child(3) { animation-delay: 0.4s; }
+        @keyframes bounce { 0%, 60%, 100% { transform: translateY(0); } 30% { transform: translateY(-8px); } }
+
+        .welcome { text-align: center; padding: 40px 20px; color: #666; }
+        .welcome h2 { font-size: 24px; color: #0073ea; margin-bottom: 8px; }
+        .welcome p { font-size: 14px; line-height: 1.6; }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <div class="header-icon">🚁</div>
+        <div class="header-text">
+            <h1>Skylark Drones BI Agent</h1>
+            <p>Powered by Monday.com</p>
+        </div>
+        <div class="live-badge">
+            <div class="live-dot"></div>
+            LIVE DATA
+        </div>
+    </div>
+
+    <div class="chat-container" id="chatContainer">
+        <div class="welcome">
+            <h2>👋 Hello, Founder!</h2>
+            <p>Ask me anything about your deals pipeline,<br>work orders, revenue, or team performance.</p>
+        </div>
+    </div>
+
+    <div class="suggestions">
+        <div class="suggestion" onclick="ask(this.innerText)">📊 How's our pipeline this quarter?</div>
+        <div class="suggestion" onclick="ask(this.innerText)">💰 What's our total deal value?</div>
+        <div class="suggestion" onclick="ask(this.innerText)">⚠️ Which work orders are not started?</div>
+        <div class="suggestion" onclick="ask(this.innerText)">🏭 Show revenue by sector</div>
+        <div class="suggestion" onclick="ask(this.innerText)">📈 What's our collection status?</div>
+        <div class="suggestion" onclick="ask(this.innerText)">📈 Which deals are high priority?</div>
+        <div class="suggestion" onclick="ask(this.innerText)">📈 Who is our top performing owner?</div>
+        <div class="suggestion" onclick="ask(this.innerText)">📈 What's our collection status?</div>
+        <div class="suggestion" onclick="ask(this.innerText)">📈 Which deals are on hold?</div>
+</div>
+</div> 
+    </div>
+
+    <div style="max-width:800px;width:100%;margin:0 auto;display:flex;">
+        <div class="input-area" style="flex:1;">
+            <input type="text" id="questionInput" placeholder="Ask a business question..." onkeydown="if(event.key==='Enter') sendMessage()" />
+            <button id="sendBtn" onclick="sendMessage()">Ask →</button>
+        </div>
+    </div>
+
+    <script>
+        const API_URL = "http://127.0.0.1:8000";
+
+        function ask(text) {
+            document.getElementById('questionInput').value = text;
+            sendMessage();
+        }
+
+        async function sendMessage() {
+            const input = document.getElementById('questionInput');
+            const question = input.value.trim();
+            if (!question) return;
+
+            addMessage(question, 'user');
+            input.value = '';
+
+            const btn = document.getElementById('sendBtn');
+            btn.disabled = true;
+            btn.innerText = '...';
+
+            const loadingDiv = addLoading();
+
+            try {
+                const response = await fetch(`${API_URL}/ask`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ question })
+                });
+
+                const data = await response.json();
+                loadingDiv.remove();
+                addMessage(data.answer, 'bot');
+
+                if (data.tool_calls) {
+                    addToolTrace(data.tool_calls, data.data_freshness);
+                }
+            } catch (err) {
+                loadingDiv.remove();
+                addMessage('⚠️ Could not connect to the server. Make sure the backend is running.', 'bot');
+            }
+
+            btn.disabled = false;
+            btn.innerText = 'Ask →';
+        }
+
+        function addMessage(text, role) {
+            const container = document.getElementById('chatContainer');
+            const div = document.createElement('div');
+            div.className = `message ${role}`;
+            div.innerHTML = `<div class="bubble">${text.replace(/\n/g, '<br>')}</div>`;
+            container.appendChild(div);
+            container.scrollTop = container.scrollHeight;
+            return div;
+        }
+
+        function addLoading() {
+            const container = document.getElementById('chatContainer');
+            const div = document.createElement('div');
+            div.className = 'message bot';
+            div.innerHTML = '<div class="bubble"><div class="loading-dots"><div class="dot"></div><div class="dot"></div><div class="dot"></div></div></div>';
+            container.appendChild(div);
+            container.scrollTop = container.scrollHeight;
+            return div;
+        }
+
+        function addToolTrace(toolCalls, freshness) {
+            const container = document.getElementById('chatContainer');
+            const div = document.createElement('div');
+            div.className = 'message bot';
+            const trace = toolCalls.map(t =>
+                `🔧 ${t.action} → Deals: ${t.records_fetched.deals} | Work Orders: ${t.records_fetched.work_orders}`
+            ).join('\n');
+            div.innerHTML = `<div class="tool-trace">${trace}<br>📡 ${freshness}</div>`;
+            container.appendChild(div);
+            container.scrollTop = container.scrollHeight;
+        }
+    </script>
+</body>
+</html>
